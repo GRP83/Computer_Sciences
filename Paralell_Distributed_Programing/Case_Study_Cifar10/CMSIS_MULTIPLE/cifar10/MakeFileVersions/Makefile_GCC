@@ -11,7 +11,7 @@ APPINCLUDE:=-I$(APP_ROOT) \
 
 VERBOSE=1
 WORKING_FOLDER=$(shell pwd)
-TOOL_CHAIN=clang
+TOOL_CHAIN=gcc
 
 APP_ROOT?=$(WORKING_FOLDER)
 
@@ -20,7 +20,7 @@ DEF=?
 
 -include NN.makefile.include
 
-GNG_CC=clang -Wall
+GNG_CC=gcc -Wall
 SRCINC?=
 ASSDBG=
 INCOBJ=$(patsubst %.c,%$(MULT).$(CROSS).o,$(SRCINC))
@@ -40,9 +40,9 @@ SRCOBJ := $(patsubst %.c, %.o, $(SRC))
 
 all: all_$(TOOL_CHAIN)
 
-ifeq ($(TOOL_CHAIN),clang)
+ifeq ($(TOOL_CHAIN),gcc)
 
-all_clang: clean exe
+all_gcc: clean exe
 
 exe::
 	$(V) $(GNG_CC) $(CFLAGS) \
