@@ -125,45 +125,40 @@ static q7_t ip1_bias[IP1_OUT] = IP1_BIAS;
 //vector buffer: max(im2col buffer,average pool buffer, fully connected buffer)
 q7_t      col_buffer[2 * 5 * 5 * 32 * 2];
 
+
 q7_t      scratch_buffer[32 * 32 * 10 * 4];
 
 
 void *Img_Recognition_Execution();
-void *Img_Recognition_Execution_0500();
-void *Img_Recognition_Execution_1000500();
 
-
-int main()
+int main( int argc, char *argv[ ] )
 {
+  printf("##########################################################\n");
+  printf("# Este programa aceita um parametro ");
+  printf("usado para definir o \n# numero de Threads a serem executadas.");
+  printf(" Por exemplo para\n# 4 threads chamar -> './app.exe 4'\n");
+  printf("##########################################################\n");
 
-  pthread_t thread1;
-  pthread_t thread2;
-  pthread_t thread3;
-  pthread_t thread4;
+  int nro_threads;
+  nro_threads = strtol(argv[1],NULL,10);
 
-  pthread_create(&thread1, NULL, Img_Recognition_Execution, NULL); 
- 
-  pthread_create(&thread2, NULL, Img_Recognition_Execution, NULL);
- 
-  pthread_create(&thread3, NULL, Img_Recognition_Execution, NULL);
- 
-  pthread_create(&thread4, NULL, Img_Recognition_Execution, NULL);
-  printf("4 Threads Started\n");
-  pthread_join(thread1, NULL);
-  
-  pthread_join(thread2, NULL);
+  pthread_t threads[nro_threads];
+  int cont;
+  int i, j, k;
 
-  pthread_join(thread3, NULL);
-
-  pthread_join(thread4, NULL);
-
-  printf("4 Threads Finished");
-/*
-  Img_Recognition_Execution();
-  Img_Recognition_Execution();
-  Img_Recognition_Execution();
-  Img_Recognition_Execution();
-*/
+  printf("Iremos processar com %d Threads\n", nro_threads);
+  printf("##########################################################\n");
+	for (j=1; j <= nro_threads; j++) {
+                printf("Thread %d iniciada\n", j); 
+		pthread_create(&threads[j], NULL, Img_Recognition_Execution, NULL);
+		
+   	};
+  printf("##########################################################\n");
+	for(k=1; k <= nro_threads; k++){
+		pthread_join(threads[k],NULL);
+                printf("Thread %d finalizada\n", k);
+	};
+  printf("##########################################################\n");  
 }
 
 
@@ -181,8 +176,6 @@ void *Img_Recognition_Execution()
   EventRecorderInitialize (EventRecordAll, 1);  // initialize and start Event Recorder
   #endif
 
-
-
 //  printf("start execution\n");
   /* start the execution */
 
@@ -190,8 +183,7 @@ void *Img_Recognition_Execution()
   for (ii = 0; ii <= 1000; ii++)
   {
   	image_data = &img_data[ii];
-       
-
+      
   q7_t     *img_buffer1 = scratch_buffer;
   q7_t     *img_buffer2 = img_buffer1 + 32 * 32 * 32;
 
@@ -247,7 +239,7 @@ void *Img_Recognition_Execution()
 
   for (int i = 0; i < 10; i++)
   {
-     // printf("%d: %d\n", i, output_data[i]);
+//     printf("%d: %d\n", i, output_data[i]);
   }
 
  } 
@@ -260,194 +252,3 @@ void *Img_Recognition_Execution()
   return NULL;
 }
 
-
-
-void *Img_Recognition_Execution_1000500 ()
-{
-
-  double time_spent = 0.0;
-
-  clock_t begin = clock();
-
-  uint8_t *image_data;
-  int ii;
-
-  #ifdef RTE_Compiler_EventRecorder
-  EventRecorderInitialize (EventRecordAll, 1);  // initialize and start Event Recorder
-  #endif
-
-
-
-//  printf("start execution\n");
-  /* start the execution */
-
-
-  for (ii = 1000; ii >= 500; ii--)
-  {
-  	image_data = &img_data[ii];
-       
-
-  q7_t     *img_buffer1 = scratch_buffer;
-  q7_t     *img_buffer2 = img_buffer1 + 32 * 32 * 32;
-
-  /* input pre-processing */
-  int mean_data[3] = INPUT_MEAN_SHIFT;
-  unsigned int scale_data[3] = INPUT_RIGHT_SHIFT;
-  for (int i=0;i<32*32*3; i+=3) {
-    img_buffer2[i] =   (q7_t)__SSAT( ((((int)image_data[i]   - mean_data[0])<<7) + (0x1<<(scale_data[0]-1)))
-                             >> scale_data[0], 8);
-    img_buffer2[i+1] = (q7_t)__SSAT( ((((int)image_data[i+1] - mean_data[1])<<7) + (0x1<<(scale_data[1]-1)))
-                             >> scale_data[1], 8);
-    img_buffer2[i+2] = (q7_t)__SSAT( ((((int)image_data[i+2] - mean_data[2])<<7) + (0x1<<(scale_data[2]-1)))
-                             >> scale_data[2], 8);
-  }
-  
-  // conv1 img_buffer2 -> img_buffer1
-  arm_convolve_HWC_q7_RGB(img_buffer2, CONV1_IM_DIM, CONV1_IM_CH, conv1_wt, CONV1_OUT_CH, CONV1_KER_DIM, CONV1_PADDING,
-                          CONV1_STRIDE, conv1_bias, CONV1_BIAS_LSHIFT, CONV1_OUT_RSHIFT, img_buffer1, CONV1_OUT_DIM,
-                          (q15_t *) col_buffer, NULL);
-
-  arm_relu_q7(img_buffer1, CONV1_OUT_DIM * CONV1_OUT_DIM * CONV1_OUT_CH);
-
-  // pool1 img_buffer1 -> img_buffer2
-  arm_maxpool_q7_HWC(img_buffer1, CONV1_OUT_DIM, CONV1_OUT_CH, POOL1_KER_DIM,
-                     POOL1_PADDING, POOL1_STRIDE, POOL1_OUT_DIM, NULL, img_buffer2);
-
-  // conv2 img_buffer2 -> img_buffer1
-  arm_convolve_HWC_q7_fast(img_buffer2, CONV2_IM_DIM, CONV2_IM_CH, conv2_wt, CONV2_OUT_CH, CONV2_KER_DIM,
-                           CONV2_PADDING, CONV2_STRIDE, conv2_bias, CONV2_BIAS_LSHIFT, CONV2_OUT_RSHIFT, img_buffer1,
-                           CONV2_OUT_DIM, (q15_t *) col_buffer, NULL);
-
-  arm_relu_q7(img_buffer1, CONV2_OUT_DIM * CONV2_OUT_DIM * CONV2_OUT_CH);
-
-  // pool2 img_buffer1 -> img_buffer2
-  arm_maxpool_q7_HWC(img_buffer1, CONV2_OUT_DIM, CONV2_OUT_CH, POOL2_KER_DIM,
-                     POOL2_PADDING, POOL2_STRIDE, POOL2_OUT_DIM, col_buffer, img_buffer2);
-
-// conv3 img_buffer2 -> img_buffer1
-  arm_convolve_HWC_q7_fast(img_buffer2, CONV3_IM_DIM, CONV3_IM_CH, conv3_wt, CONV3_OUT_CH, CONV3_KER_DIM,
-                           CONV3_PADDING, CONV3_STRIDE, conv3_bias, CONV3_BIAS_LSHIFT, CONV3_OUT_RSHIFT, img_buffer1,
-                           CONV3_OUT_DIM, (q15_t *) col_buffer, NULL);
-
-  arm_relu_q7(img_buffer1, CONV3_OUT_DIM * CONV3_OUT_DIM * CONV3_OUT_CH);
-
-  // pool3 img_buffer-> img_buffer2
-  arm_maxpool_q7_HWC(img_buffer1, CONV3_OUT_DIM, CONV3_OUT_CH, POOL3_KER_DIM,
-                     POOL3_PADDING, POOL3_STRIDE, POOL3_OUT_DIM, col_buffer, img_buffer2);
-
-  arm_fully_connected_q7_opt(img_buffer2, ip1_wt, IP1_DIM, IP1_OUT, IP1_BIAS_LSHIFT, IP1_OUT_RSHIFT, ip1_bias,
-                             output_data, (q15_t *) img_buffer1);
-
-  arm_softmax_q7(output_data, 10, output_data);
-
-  for (int i = 0; i < 10; i++)
-  {
-//      printf("%d: %d\n", i, output_data[i]);
-  }
-
- } 
-
-  clock_t end = clock();
-
-  time_spent += (double)(end-begin) / CLOCKS_PER_SEC;
-  //printf("\n The Elapsed time is %f seconds \n", time_spent);
-
-  return NULL;
-}
-
-
-void *Img_Recognition_Execution_0500 ()
-{
-
-  double time_spent = 0.0;
-
-  clock_t begin = clock();
-
-  uint8_t *image_data;
-  int ii;
-
-  #ifdef RTE_Compiler_EventRecorder
-  EventRecorderInitialize (EventRecordAll, 1);  // initialize and start Event Recorder
-  #endif
-
-
-
-//  printf("start execution\n");
-  /* start the execution */
-
-
-  for (ii = 499; ii >= 0; ii--)
-  {
-  	image_data = &img_data[ii];
-       
-
-  q7_t     *img_buffer1 = scratch_buffer;
-  q7_t     *img_buffer2 = img_buffer1 + 32 * 32 * 32;
-
-  /* input pre-processing */
-  int mean_data[3] = INPUT_MEAN_SHIFT;
-  unsigned int scale_data[3] = INPUT_RIGHT_SHIFT;
-  for (int i=0;i<32*32*3; i+=3) {
-    img_buffer2[i] =   (q7_t)__SSAT( ((((int)image_data[i]   - mean_data[0])<<7) + (0x1<<(scale_data[0]-1)))
-                             >> scale_data[0], 8);
-    img_buffer2[i+1] = (q7_t)__SSAT( ((((int)image_data[i+1] - mean_data[1])<<7) + (0x1<<(scale_data[1]-1)))
-                             >> scale_data[1], 8);
-    img_buffer2[i+2] = (q7_t)__SSAT( ((((int)image_data[i+2] - mean_data[2])<<7) + (0x1<<(scale_data[2]-1)))
-                             >> scale_data[2], 8);
-  }
-  
-  // conv1 img_buffer2 -> img_buffer1
-  arm_convolve_HWC_q7_RGB(img_buffer2, CONV1_IM_DIM, CONV1_IM_CH, conv1_wt, CONV1_OUT_CH, CONV1_KER_DIM, CONV1_PADDING,
-                          CONV1_STRIDE, conv1_bias, CONV1_BIAS_LSHIFT, CONV1_OUT_RSHIFT, img_buffer1, CONV1_OUT_DIM,
-                          (q15_t *) col_buffer, NULL);
-
-  arm_relu_q7(img_buffer1, CONV1_OUT_DIM * CONV1_OUT_DIM * CONV1_OUT_CH);
-
-  // pool1 img_buffer1 -> img_buffer2
-  arm_maxpool_q7_HWC(img_buffer1, CONV1_OUT_DIM, CONV1_OUT_CH, POOL1_KER_DIM,
-                     POOL1_PADDING, POOL1_STRIDE, POOL1_OUT_DIM, NULL, img_buffer2);
-
-  // conv2 img_buffer2 -> img_buffer1
-  arm_convolve_HWC_q7_fast(img_buffer2, CONV2_IM_DIM, CONV2_IM_CH, conv2_wt, CONV2_OUT_CH, CONV2_KER_DIM,
-                           CONV2_PADDING, CONV2_STRIDE, conv2_bias, CONV2_BIAS_LSHIFT, CONV2_OUT_RSHIFT, img_buffer1,
-                           CONV2_OUT_DIM, (q15_t *) col_buffer, NULL);
-
-  arm_relu_q7(img_buffer1, CONV2_OUT_DIM * CONV2_OUT_DIM * CONV2_OUT_CH);
-
-  // pool2 img_buffer1 -> img_buffer2
-  arm_maxpool_q7_HWC(img_buffer1, CONV2_OUT_DIM, CONV2_OUT_CH, POOL2_KER_DIM,
-                     POOL2_PADDING, POOL2_STRIDE, POOL2_OUT_DIM, col_buffer, img_buffer2);
-
-// conv3 img_buffer2 -> img_buffer1
-  arm_convolve_HWC_q7_fast(img_buffer2, CONV3_IM_DIM, CONV3_IM_CH, conv3_wt, CONV3_OUT_CH, CONV3_KER_DIM,
-                           CONV3_PADDING, CONV3_STRIDE, conv3_bias, CONV3_BIAS_LSHIFT, CONV3_OUT_RSHIFT, img_buffer1,
-                           CONV3_OUT_DIM, (q15_t *) col_buffer, NULL);
-
-  arm_relu_q7(img_buffer1, CONV3_OUT_DIM * CONV3_OUT_DIM * CONV3_OUT_CH);
-
-  // pool3 img_buffer-> img_buffer2
-  arm_maxpool_q7_HWC(img_buffer1, CONV3_OUT_DIM, CONV3_OUT_CH, POOL3_KER_DIM,
-                     POOL3_PADDING, POOL3_STRIDE, POOL3_OUT_DIM, col_buffer, img_buffer2);
-
-  arm_fully_connected_q7_opt(img_buffer2, ip1_wt, IP1_DIM, IP1_OUT, IP1_BIAS_LSHIFT, IP1_OUT_RSHIFT, ip1_bias,
-                             output_data, (q15_t *) img_buffer1);
-
-  arm_softmax_q7(output_data, 10, output_data);
-
-  for (int i = 0; i < 10; i++)
-  {
- //     printf("%d: %d\n", i, output_data[i]);
-  }
-
- } 
-
-  clock_t end = clock();
-
-  time_spent += (double)(end-begin) / CLOCKS_PER_SEC;
-  //printf("\n The Elapsed time is %f seconds \n", time_spent);
-
-
-
-
-  return NULL;
-}
