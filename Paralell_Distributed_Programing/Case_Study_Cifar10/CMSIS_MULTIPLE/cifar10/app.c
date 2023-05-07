@@ -131,6 +131,9 @@ q7_t      scratch_buffer[32 * 32 * 10 * 4];
 
 void *Img_Recognition_Execution();
 
+pthread_mutex_t mutex;
+
+
 int main( int argc, char *argv[ ] )
 {
   printf("##########################################################\n");
@@ -182,7 +185,9 @@ void *Img_Recognition_Execution()
 
   for (ii = 0; ii <= 1000; ii++)
   {
-  	image_data = &img_data[ii];
+
+  pthread_mutex_lock(&mutex);
+  image_data = &img_data[ii];
       
   q7_t     *img_buffer1 = scratch_buffer;
   q7_t     *img_buffer2 = img_buffer1 + 32 * 32 * 32;
@@ -242,13 +247,14 @@ void *Img_Recognition_Execution()
 //     printf("%d: %d\n", i, output_data[i]);
   }
 
+    pthread_mutex_unlock(&mutex);
  } 
 
   clock_t end = clock();
 
   time_spent += (double)(end-begin) / CLOCKS_PER_SEC;
 //  printf("\n The Elapsed time is %f seconds \n", time_spent);
-
+  
   return NULL;
 }
 
