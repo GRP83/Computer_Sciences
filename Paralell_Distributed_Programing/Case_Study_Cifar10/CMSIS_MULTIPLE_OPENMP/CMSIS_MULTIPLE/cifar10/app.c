@@ -134,9 +134,8 @@ int resultados[9];
 
 int main (int argc, char *argv[] )
 {
-
-for (int z = 0; z < 10; z++){	
-	resultados[z] = 0;};
+  //inicializa um vetor de resultados, iniciando o mesmo com 0;
+  for (int z = 0; z < 10; z++){resultados[z] = 0;};
 
   printf("##########################################################\n");
   printf("Este programa esta configurado para 4 Threads\n");
@@ -147,11 +146,10 @@ for (int z = 0; z < 10; z++){
 
 //  #pragma omp parallel for num_threads(THREADS)
   Img_Recognition_Execution();  
-   } 
+} 
+
 void *Img_Recognition_Execution()
 {
-
-  
 
   double time_spent = 0.0;
 
@@ -163,10 +161,11 @@ void *Img_Recognition_Execution()
   EventRecorderInitialize (EventRecordAll, 1);  // initialize and start Event Recorder
   #endif
 
-//  printf("start execution\n");
+  //  printf("start execution\n");
   /* start the execution */
   #pragma omp parallel for num_threads(N_THREADS)
-  for (ii=1; ii<1001; ii++) {
+  //int ii;
+  for (ii=0; ii<1; ii++) {
 
   image_data = &img_data[ii];
       
@@ -176,7 +175,7 @@ void *Img_Recognition_Execution()
   /* input pre-processing */
   int mean_data[3] = INPUT_MEAN_SHIFT;
   unsigned int scale_data[3] = INPUT_RIGHT_SHIFT;
-  #pragma omp parallel for num_threads(N_THREADS)
+//  #pragma omp parallel for num_threads(N_THREADS)
   for (int i=0;i<32*32*3; i+=3) {
     img_buffer2[i] =   (q7_t)__SSAT( ((((int)image_data[i]   - mean_data[0])<<7) + (0x1<<(scale_data[0]-1)))
                              >> scale_data[0], 8);
@@ -224,25 +223,34 @@ void *Img_Recognition_Execution()
 
   arm_softmax_q7(output_data, 10, output_data);
 
-  int maior;
-  maior = 0;
+  int maior = 0;
+  int maiorI = 0;
+//  for (int z = 0; z < 11; z++){resultados[z] = 0;}
+
   for (int i = 0; i < 10; i++)
      {    
-     if (output_data[i] > maior) {
-       maior = i;
-       resultados[i] = resultados[i]+1;
-     }     
+	
+     printf("%d: %d\n", i, output_data[i]);
 
+     if (output_data[i] > maior) {
+//       printf("%d \n", maior);
+       maior = output_data[i];
+       maiorI = i;
+//       printf("%d \n", maior);
+//       resultados[i] = resultados[i]+1;
+     }     
+//     printf("%d \n", maiorI);
+     resultados[maiorI] = resultados[maiorI]+1; 
 //  printf("%d", resultados[maior]);
 
-  }
+}
 //  printf("%d \n", resultados[0]);
 
 } 
   for (int l = 0; l < 10; l++){
   
     printf("Total de Imagens Classificadas na classe %d : %d \n", l, resultados[l]);
-  
+
   }
   clock_t end = clock();
 
