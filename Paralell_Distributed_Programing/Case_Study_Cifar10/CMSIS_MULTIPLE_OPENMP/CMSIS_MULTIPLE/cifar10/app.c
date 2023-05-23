@@ -165,7 +165,7 @@ void *Img_Recognition_Execution()
   /* start the execution */
   #pragma omp parallel for num_threads(N_THREADS)
   //int ii;
-  for (ii=0; ii<1; ii++) {
+  for (ii=0; ii<1000; ii++) {
 
   image_data = &img_data[ii];
       
@@ -175,7 +175,7 @@ void *Img_Recognition_Execution()
   /* input pre-processing */
   int mean_data[3] = INPUT_MEAN_SHIFT;
   unsigned int scale_data[3] = INPUT_RIGHT_SHIFT;
-//  #pragma omp parallel for num_threads(N_THREADS)
+  #pragma omp parallel for num_threads(N_THREADS)
   for (int i=0;i<32*32*3; i+=3) {
     img_buffer2[i] =   (q7_t)__SSAT( ((((int)image_data[i]   - mean_data[0])<<7) + (0x1<<(scale_data[0]-1)))
                              >> scale_data[0], 8);
